@@ -1,4 +1,4 @@
-# Inventory System for Unity
+# Inventory System for Unity2
 Installation / Integration as Submodule:
 ```sh
 git submodule add https://github.com/Ator9/InventorySystem Assets/InventorySystem
