@@ -1,1 +1,1 @@
-# InventorySystem for Unity
+# Inventory System for Unity
