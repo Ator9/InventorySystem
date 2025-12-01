@@ -5,9 +5,9 @@ git submodule add https://github.com/Ator9/InventorySystem Assets/InventorySyste
 ```
 Pull changes:
 ```sh
-git subtree pull --prefix=Assets/InventorySystem inventory_system main
+git submodule update --remote --merge
 ```
-Push changes to Inventory System (for Owner or fork owner):
+Push changes (for Owner or fork owner):
 ```sh
 git subtree push --prefix=Assets/InventorySystem inventory_system main
 ```
