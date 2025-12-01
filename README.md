@@ -1,4 +1,4 @@
-# Inventory System for Unity2
+# Inventory System for Unity3
 Installation / Integration as subtree:
 ```sh
 git remote add inventory_system https://github.com/Ator9/InventorySystem
