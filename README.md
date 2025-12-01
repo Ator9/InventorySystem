@@ -7,7 +7,4 @@ Pull changes:
 ```sh
 git submodule update --remote --merge
 ```
-Push changes (for Owner or fork owner):
-```sh
-git subtree push --prefix=Assets/InventorySystem inventory_system main
-```
+Push changes: change repository
