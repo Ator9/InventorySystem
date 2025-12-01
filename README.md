@@ -1,10 +1,10 @@
 # Inventory System for Unity
-Game Project Integration as subtree
+Installation - Game Project Integration as subtree:
 ```sh
 git remote add inventory_system https://github.com/Ator9/InventorySystem
 git subtree add --prefix=Assets/InventorySystem inventory_system main --squash
 ```
-Push to inventory system:
+Push to inventory system (Owner or fork owner):
 ```sh
 git subtree push --prefix=Assets/InventorySystem inventory_system main
 ```
