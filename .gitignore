@@ -1,0 +1,2 @@
+# allow metas inside Unity project but ignore stray ones
+!*.meta
