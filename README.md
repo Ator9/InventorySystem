@@ -1,8 +1,7 @@
-# Inventory System for Unity3
-Installation / Integration as subtree:
+# Inventory System for Unity
+Installation / Integration as Submodule:
 ```sh
-git remote add inventory_system https://github.com/Ator9/InventorySystem
-git subtree add --prefix=Assets/InventorySystem inventory_system main --squash
+git submodule add https://github.com/Ator9/InventorySystem Assets/InventorySystem
 ```
 Pull changes:
 ```sh
