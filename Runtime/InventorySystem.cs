@@ -1,8 +1,9 @@
-using Assets.InventorySystem.Runtime.Input;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Assets.InventorySystem.Runtime.Input;
+using Assets.InventorySystem.Runtime.Audio;
 
 namespace Assets.InventorySystem.Runtime
 {
@@ -26,7 +27,9 @@ namespace Assets.InventorySystem.Runtime
         private readonly int lootSlots = 70;
 
         private PlayerNetworkInventory playerNetworkInventory;
+
         private IInputService inputService;
+        private IAudioFeedback audioFeedback;
 
         private VisualElement draggedElement;
 
@@ -34,6 +37,7 @@ namespace Assets.InventorySystem.Runtime
         {
             Instance = this;
             inputService ??= new KeyboardInputService();
+            audioFeedback ??= new NullAudioFeedback();
         }
 
         private void OnEnable()
@@ -160,6 +164,9 @@ namespace Assets.InventorySystem.Runtime
             if (currentDraggedIndex == selectedSlot || index == selectedSlot)
                 UpdateItemInHand();
 
+            // Play audio for move
+            audioFeedback?.PlayItemMove();
+
             // Reset currentDraggedIndex
             currentDraggedIndex = -1;
         }
@@ -244,6 +251,9 @@ namespace Assets.InventorySystem.Runtime
                 draggedElement.RemoveFromHierarchy();
                 draggedElement = null;
                 currentDraggedIndex = -1;
+
+                // Play audio for restore move
+                audioFeedback?.PlayItemMove();
             }
         }
 
@@ -346,8 +356,8 @@ namespace Assets.InventorySystem.Runtime
             else
                 OpenInventory();
 
-            // Sound on toggle
-            GameManager.AudioSource.PlayOneShot(GameManager.AssetManager.changeTargetAudio, 0.3f);
+            // Play audio feedback on toggle
+            audioFeedback?.PlayToggle();
         }
 
         private void CreateBackground()
@@ -370,6 +380,12 @@ namespace Assets.InventorySystem.Runtime
         public void SetInputService(IInputService service)
         {
             inputService = service ?? new KeyboardInputService();
+        }
+
+        // Allow host to inject a custom audio feedback (e.g., using AudioSource or FMOD)
+        public void SetAudioFeedback(IAudioFeedback feedback)
+        {
+            audioFeedback = feedback ?? new NullAudioFeedback();
         }
     }
 }
