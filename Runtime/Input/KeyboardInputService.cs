@@ -15,15 +15,15 @@ namespace Assets.InventorySystem.Runtime.Input
             var k = Keyboard.current;
             if (k == null) return null;
 
-            if (k.digit1Key.wasPressedThisFrame) return 0;
-            if (k.digit2Key.wasPressedThisFrame) return 1;
-            if (k.digit3Key.wasPressedThisFrame) return 2;
-            if (k.digit4Key.wasPressedThisFrame) return 3;
-            if (k.digit5Key.wasPressedThisFrame) return 4;
-            if (k.digit6Key.wasPressedThisFrame) return 5;
+            var keys = new[] { 
+                k.digit1Key, k.digit2Key, k.digit3Key,
+                k.digit4Key, k.digit5Key, k.digit6Key
+            };
 
-            // Extend as needed for more slots:
-            // if (k.digit7Key.wasPressedThisFrame) return 6; etc.
+            for (var i = 0; i < keys.Length; i++)
+            {
+                if (keys[i].wasPressedThisFrame) return i;
+            }
 
             return null;
         }
