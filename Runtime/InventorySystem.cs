@@ -135,7 +135,9 @@ namespace Assets.InventorySystem.Runtime
             if (allowToggleKey && inputService != null && inputService.TogglePressed())
                 ToggleInventory();
 
-            SelectSlot(); // Select slot with number keys
+            // Select slot with keys
+            if (playerNetworkInventory != null)
+                SelectSlot();
         }
 
         // Fill Player inventory from database
