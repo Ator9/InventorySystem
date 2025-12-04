@@ -1,9 +1,10 @@
+using Assets.InventorySystem.Runtime.Audio;
+using Assets.InventorySystem.Runtime.Input;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
-using Assets.InventorySystem.Runtime.Input;
-using Assets.InventorySystem.Runtime.Audio;
 
 namespace Assets.InventorySystem.Runtime
 {
@@ -16,6 +17,12 @@ namespace Assets.InventorySystem.Runtime
         public VisualElement RootBody { get; private set; }
         public VisualElement RootLootSlots { get; private set; }
         public VisualElement Background { get; private set; }
+
+        [Header("Initial Visibility")]
+        [SerializeField] private bool startHidden = true; // Live Game default: hidden
+
+        [Header("Input")]
+        [SerializeField] private bool allowToggleKey = true; // Menu: set false to disable Tab toggling
 
         private List<VisualElement> slots;
         private List<ItemSO> items = new();
@@ -38,18 +45,28 @@ namespace Assets.InventorySystem.Runtime
             Instance = this;
             inputService ??= new KeyboardInputService();
             audioFeedback ??= new NullAudioFeedback();
+
+            SceneManager.activeSceneChanged += OnSceneChanged;
+        }
+
+        private void Start()
+        {
+            // In menu, playerNetworkInventory may be null. UI will still initialize in OnEnable.
+            if (LocalPlayerManager.Instance != null && LocalPlayerManager.Instance.LocalPlayer != null)
+            {
+                playerNetworkInventory = LocalPlayerManager.Instance.LocalPlayer.GetComponent<PlayerNetworkInventory>();
+                playerNetworkInventory.LoadItemsFromDatabaseRpc();
+            }
         }
 
         private void OnEnable()
         {
             Root = GetComponent<UIDocument>().rootVisualElement;
             RootBody = Root.Q<VisualElement>("Body");
-            RootBody.style.display = DisplayStyle.None;
             RootLootSlots = Root.Q<VisualElement>("LootSlots");
-            RootLootSlots.style.display = DisplayStyle.None;
 
-            // Create background overlay
-            CreateBackground();
+            ApplyInitialValues();
+            CreateBackground(); // Create background color
 
             for (int i = 0; i < lootSlots; i++)
                 Root.Q("LootSlots").Add(CreateSlot());
@@ -79,6 +96,15 @@ namespace Assets.InventorySystem.Runtime
             }).ExecuteLater(0);
         }
 
+        private void ApplyInitialValues()
+        {
+            if (RootBody != null)
+                RootBody.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
+
+            if (RootLootSlots != null)
+                RootLootSlots.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
         public void ActivateContainerSlots(LootContainer lootContainer)
         {
             CurrentLootContainer = lootContainer;
@@ -103,16 +129,10 @@ namespace Assets.InventorySystem.Runtime
             CurrentLootContainer = null;
         }
 
-        private void Start()
-        {
-            playerNetworkInventory = LocalPlayerManager.Instance.LocalPlayer.GetComponent<PlayerNetworkInventory>();
-            playerNetworkInventory.LoadItemsFromDatabaseRpc();
-        }
-
         void Update()
         {
             // Toggle inventory via input service
-            if (inputService != null && inputService.TogglePressed())
+            if (allowToggleKey && inputService != null && inputService.TogglePressed())
                 ToggleInventory();
 
             SelectSlot(); // Select slot with number keys
@@ -386,6 +406,17 @@ namespace Assets.InventorySystem.Runtime
         public void SetAudioFeedback(IAudioFeedback feedback)
         {
             audioFeedback = feedback ?? new NullAudioFeedback();
+        }
+
+        private void OnSceneChanged(Scene oldScene, Scene newScene)
+        {
+            // Reapply scene defaults to avoid inheriting the previous scene’s state
+            ApplyInitialValues();
+        }
+
+        private void OnDestroy()
+        {
+            SceneManager.activeSceneChanged -= OnSceneChanged;
         }
     }
 }
