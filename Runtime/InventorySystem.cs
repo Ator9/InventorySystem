@@ -31,7 +31,7 @@ namespace Assets.InventorySystem.Runtime
         private float slotHeight;
         private int selectedSlot = -1;
         private int lootIndexOffset = 0;
-        private readonly int lootSlots = 70;
+        private readonly int lootSlots = 120;
 
         private PlayerNetworkInventory playerNetworkInventory;
 
