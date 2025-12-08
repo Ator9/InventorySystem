@@ -24,6 +24,9 @@ namespace Assets.InventorySystem.Runtime
         [Header("Input")]
         [SerializeField] private bool allowToggleKey = true; // Menu: set false to disable Tab toggling
 
+        [Header("Templates")]
+        [SerializeField] private VisualTreeAsset slotTemplate; // Assign Assets/UI/Inventory/Slot.uxml
+
         private List<VisualElement> slots;
         private List<ItemSO> items = new();
         private int currentDraggedIndex = -1;
@@ -42,7 +45,7 @@ namespace Assets.InventorySystem.Runtime
 
         private void Awake()
         {
-            Instance = this;
+            // Set default services if none provided
             inputService ??= new KeyboardInputService();
             audioFeedback ??= new NullAudioFeedback();
 
@@ -55,7 +58,6 @@ namespace Assets.InventorySystem.Runtime
             if (LocalPlayerManager.Instance != null && LocalPlayerManager.Instance.LocalPlayer != null)
             {
                 playerNetworkInventory = LocalPlayerManager.Instance.LocalPlayer.GetComponent<PlayerNetworkInventory>();
-                playerNetworkInventory.LoadItemsFromDatabaseRpc();
             }
         }
 
@@ -96,22 +98,15 @@ namespace Assets.InventorySystem.Runtime
             }).ExecuteLater(0);
         }
 
-        private void ApplyInitialValues()
-        {
-            if (RootBody != null)
-                RootBody.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
-
-            if (RootLootSlots != null)
-                RootLootSlots.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
-        }
-
         public void ActivateContainerSlots(LootContainer lootContainer)
         {
             CurrentLootContainer = lootContainer;
 
             // Show only needed slots for the container, hide the rest
             for (int i = 0; i < lootSlots; i++)
+            {
                 Root.Q("LootSlots").Children().ElementAt(i).style.display = i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
             RootLootSlots.style.display = DisplayStyle.Flex;
         }
@@ -140,15 +135,18 @@ namespace Assets.InventorySystem.Runtime
                 SelectSlot();
         }
 
-        // Fill Player inventory from database
         public void FillInventoryFromDatabase(string itemId, int amount, string containerId, int slot)
         {
             ItemSO itemSO = GameManager.AssetManager.GetItemById(itemId);
             if (itemSO == null) return;
 
-            var image = new Image { sprite = itemSO.icon };
-            image.style.opacity = 0.9f;
-            slots[slot].Add(image);
+            var icon = slots[slot].Q<VisualElement>("Icon");
+            var count = slots[slot].Q<Label>("Count");
+
+            icon.style.backgroundImage = new StyleBackground(itemSO.icon);
+            icon.style.opacity = 0.9f;
+            count.text = amount > 1 ? amount.ToString() : string.Empty;
+
             items[slot] = itemSO;
         }
 
@@ -156,29 +154,65 @@ namespace Assets.InventorySystem.Runtime
         {
             string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
 
-            // Swap items
             bool swap = false;
             if (items[index] != null && index != currentDraggedIndex && currentDraggedIndex >= 0)
             {
                 swap = true;
+
+                // Move icon/background from target to dragged slot
+                var targetSlot = slots[index];
+                var draggedSlot = slots[currentDraggedIndex];
+
+                var targetIcon = targetSlot.Q<VisualElement>("Icon");
+                var targetCount = targetSlot.Q<Label>("Count");
+                var draggedIcon = draggedSlot.Q<VisualElement>("Icon");
+                var draggedCount = draggedSlot.Q<Label>("Count");
+
+                // Copy target item visual to dragged
+                draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
+                draggedIcon.style.opacity = targetIcon.style.opacity;
+                draggedCount.text = targetCount?.text;
+
+                // Copy item data
                 items[currentDraggedIndex] = items[index];
-                slots[currentDraggedIndex].Add(slots[index].Children().First());
 
                 playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, items[currentDraggedIndex].Id, 1);
             }
 
-            // Add item and icon
-            var image = new Image { sprite = itemSO.icon };
-            image.style.opacity = 0.9f;
-            slots[index].Add(image);
+            // Set new item visuals on target slot
+            var newIcon = slots[index].Q<VisualElement>("Icon");
+            var newCount = slots[index].Q<Label>("Count");
+
+            if (newIcon != null)
+            {
+                newIcon.style.backgroundImage = new StyleBackground(itemSO.icon);
+                newIcon.style.opacity = 0.9f;
+            }
+            if (newCount != null)
+            {
+                newCount.text = "1";
+            }
+
             items[index] = itemSO;
 
-            // Sync with server
             playerNetworkInventory.SyncAddItemRpc(containerId, index, itemSO.Id, 1);
 
-            // Remove from old location if it's coming from another slot
             if (currentDraggedIndex >= 0 && currentDraggedIndex != index && swap == false)
             {
+                // Clear dragged slot visuals
+                var draggedIcon = slots[currentDraggedIndex].Q<VisualElement>("Icon");
+                var draggedCount = slots[currentDraggedIndex].Q<Label>("Count");
+
+                if (draggedIcon != null)
+                {
+                    draggedIcon.style.backgroundImage = null;
+                    draggedIcon.style.opacity = 1f;
+                }
+                if (draggedCount != null)
+                {
+                    draggedCount.text = string.Empty;
+                }
+
                 items[currentDraggedIndex] = null;
                 playerNetworkInventory.SyncRemoveItemRpc(containerId, currentDraggedIndex);
             }
@@ -186,10 +220,7 @@ namespace Assets.InventorySystem.Runtime
             if (currentDraggedIndex == selectedSlot || index == selectedSlot)
                 UpdateItemInHand();
 
-            // Play audio for move
             audioFeedback?.PlayItemMove();
-
-            // Reset currentDraggedIndex
             currentDraggedIndex = -1;
         }
 
@@ -199,29 +230,28 @@ namespace Assets.InventorySystem.Runtime
             if (Root.Q<VisualElement>("Body").style.display == DisplayStyle.None) return;
 
             var slot = evt.currentTarget as VisualElement;
+            var slotIndex = slots.IndexOf(slot);
 
             // Check if the slot has an item
-            if (items[slots.IndexOf(slot)] != null)
+            if (items[slotIndex] != null)
             {
-                currentDraggedIndex = slots.IndexOf(slot);
-                if (currentDraggedIndex >= 0 && items[currentDraggedIndex] != null)
-                {
-                    draggedElement = new Image { sprite = items[currentDraggedIndex].icon };
-                    draggedElement.style.width = slotWidth;
-                    draggedElement.style.height = slotHeight;
-                    draggedElement.style.position = Position.Absolute;
-                    draggedElement.pickingMode = PickingMode.Ignore; // Ignore the image to not block the pointer position
+                currentDraggedIndex = slotIndex;
 
-                    // Convert screen coordinates to local coordinates
-                    Vector2 localMousePosition = Root.WorldToLocal(evt.position);
-                    draggedElement.style.left = localMousePosition.x;
-                    draggedElement.style.top = localMousePosition.y;
+                draggedElement = new Image { sprite = items[currentDraggedIndex].icon };
+                draggedElement.style.width = slotWidth;
+                draggedElement.style.height = slotHeight;
+                draggedElement.style.position = Position.Absolute;
+                draggedElement.pickingMode = PickingMode.Ignore;
 
-                    Root.Add(draggedElement);
+                // Convert screen coordinates to local coordinates
+                Vector2 localMousePosition = Root.WorldToLocal(evt.position);
+                draggedElement.style.left = localMousePosition.x;
+                draggedElement.style.top = localMousePosition.y;
 
-                    // Remove the icon from the slot
-                    slots[currentDraggedIndex].Clear();
-                }
+                Root.Add(draggedElement);
+
+                // Hide the icon from the slot while dragging (do not Clear() the slot)
+                slot.Q<VisualElement>("Icon").style.backgroundImage = null;
             }
         }
 
@@ -269,12 +299,18 @@ namespace Assets.InventorySystem.Runtime
         {
             if (currentDraggedIndex >= 0)
             {
-                AddItemToSlot(currentDraggedIndex, items[currentDraggedIndex]);
+                // Restore the icon background to the original slot
+                var icon = slots[currentDraggedIndex].Q<VisualElement>("Icon");
+                if (icon != null && items[currentDraggedIndex] != null)
+                {
+                    icon.style.backgroundImage = new StyleBackground(items[currentDraggedIndex].icon);
+                    icon.style.opacity = 0.9f;
+                }
+
                 draggedElement.RemoveFromHierarchy();
                 draggedElement = null;
                 currentDraggedIndex = -1;
 
-                // Play audio for restore move
                 audioFeedback?.PlayItemMove();
             }
         }
@@ -289,9 +325,25 @@ namespace Assets.InventorySystem.Runtime
         {
             for (int i = 0; i < slots.Count; i++)
             {
-                slots[i].Clear();
+                var icon = slots[i].Q<VisualElement>("Icon");
+                var count = slots[i].Q<Label>("Count");
+
+                if (icon != null)
+                {
+                    icon.style.backgroundImage = null;
+                    icon.style.opacity = 1f;
+                }
+                if (count != null)
+                {
+                    count.text = string.Empty;
+                }
+
                 items[i] = null;
             }
+
+            //selectedSlot = -1;
+            //for (int i = 0; i < Mathf.Min(6, slots.Count); i++)
+            //    slots[i].style.borderBottomColor = Color.grey;
         }
 
         // Select slot with number keys via input service
@@ -332,27 +384,7 @@ namespace Assets.InventorySystem.Runtime
 
         private VisualElement CreateSlot()
         {
-            var slot = new VisualElement();
-            slot.style.width = 90;
-            slot.style.height = 90;
-            slot.style.minHeight = 50;
-            slot.style.minWidth = 50;
-
-            slot.style.marginLeft = 2;
-            slot.style.marginRight = 2;
-            slot.style.marginTop = 2;
-            slot.style.marginBottom = 2;
-
-            slot.style.borderBottomWidth = 1;
-            slot.style.borderBottomColor = Color.grey;
-            slot.style.borderTopWidth = 1;
-            slot.style.borderTopColor = Color.grey;
-            slot.style.borderLeftWidth = 1;
-            slot.style.borderLeftColor = Color.grey;
-            slot.style.borderRightWidth = 1;
-            slot.style.borderRightColor = Color.grey;
-
-            return slot;
+            return slotTemplate.CloneTree().Q<VisualElement>("Slot");
         }
 
         public bool IsInventoryOpen => RootBody.style.display == DisplayStyle.Flex;
@@ -410,15 +442,68 @@ namespace Assets.InventorySystem.Runtime
             audioFeedback = feedback ?? new NullAudioFeedback();
         }
 
+        // Bind the player's network inventory so UI interactions can sync
+        public void SetPlayerNetworkInventory(PlayerNetworkInventory inventory)
+        {
+            playerNetworkInventory = inventory;
+        }
+
+        // Indicates the UI is ready to accept items (slots created)
+        public bool IsUiReady => slots != null && slots.Count > 0;
+
         private void OnSceneChanged(Scene oldScene, Scene newScene)
         {
+            // Choose the active InventorySystem based on known GameObjects per scene.
+            ResolveActiveInstance(newScene);
+
             // Reapply scene defaults to avoid inheriting the previous scene’s state
             ApplyInitialValues();
+        }
+
+        private void ResolveActiveInstance(Scene scene)
+        {
+            // Search the new scene's root objects (excludes DontDestroyOnLoad)
+            var roots = scene.GetRootGameObjects();
+
+            // Prefer CharacterHud in gameplay scenes
+            var hudGo = roots.FirstOrDefault(go => go.name == "CharacterHud");
+            if (hudGo != null)
+            {
+                var gameInv = hudGo.GetComponent<InventorySystem>();
+                if (gameInv != null && gameObject.name == "MainMenu")
+                {
+                    Instance = gameInv;
+                    return;
+                }
+            }
+
+            // Fallback: persistent MainMenu (DontDestroyOnLoad)
+            var persistentMenu = GameObject.Find("MainMenu");
+            if (persistentMenu != null && gameObject.name == "MainMenu")
+            {
+                var menuInvPersistent = persistentMenu.GetComponent<InventorySystem>();
+                if (menuInvPersistent != null)
+                {
+                    Instance = menuInvPersistent;
+                    return;
+                }
+            }
+        }
+
+        private void ApplyInitialValues()
+        {
+            if (RootBody != null)
+                RootBody.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
+
+            if (RootLootSlots != null)
+                RootLootSlots.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         private void OnDestroy()
         {
             SceneManager.activeSceneChanged -= OnSceneChanged;
+            if (Instance == this)
+                Instance = null;
         }
     }
 }
