@@ -33,7 +33,7 @@ namespace Assets.InventorySystem.Runtime
         private float slotWidth;
         private float slotHeight;
         private int selectedSlot = -1;
-        private int lootIndexOffset = 0;
+        private readonly int baseSlots = 18;
         private readonly int lootSlots = 120;
 
         private PlayerNetworkInventory playerNetworkInventory;
@@ -77,7 +77,6 @@ namespace Assets.InventorySystem.Runtime
             slots = Root.Q("BottomSlots").Children().ToList();
             slots.AddRange(Root.Q("MiddleSlots").Children().ToList());
             slots.AddRange(Root.Q("LootSlots").Children().ToList());
-            lootIndexOffset = slots.Count - lootSlots;
 
             for (int i = 0; i < slots.Count; i++)
             {
@@ -117,8 +116,8 @@ namespace Assets.InventorySystem.Runtime
 
             for (int i = 0; i < CurrentLootContainer.slots; i++)
             {
-                slots[i + lootIndexOffset].Clear();
-                items[i + lootIndexOffset] = null;
+                slots[i + baseSlots].Clear();
+                items[i + baseSlots] = null;
             }
 
             CurrentLootContainer = null;
@@ -153,6 +152,8 @@ namespace Assets.InventorySystem.Runtime
         public void AddItemToSlot(int index, ItemSO itemSO)
         {
             string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
+
+            print(itemSO.name + " to slot " + index + " in container " + containerId);
 
             bool swap = false;
             if (items[index] != null && index != currentDraggedIndex && currentDraggedIndex >= 0)
@@ -318,7 +319,7 @@ namespace Assets.InventorySystem.Runtime
         // Fill loot container
         public void FillLootContainer(ItemSO item, int slot)
         {
-            AddItemToSlot(slot + lootIndexOffset, item);
+            AddItemToSlot(slot + baseSlots, item);
         }
 
         public void ClearInventory()
@@ -502,8 +503,6 @@ namespace Assets.InventorySystem.Runtime
         private void OnDestroy()
         {
             SceneManager.activeSceneChanged -= OnSceneChanged;
-            if (Instance == this)
-                Instance = null;
         }
     }
 }
