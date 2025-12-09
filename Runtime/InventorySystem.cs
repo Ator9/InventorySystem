@@ -153,8 +153,6 @@ namespace Assets.InventorySystem.Runtime
         {
             string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
 
-            print(itemSO.name + " to slot " + index + " in container " + containerId);
-
             bool swap = false;
             if (items[index] != null && index != currentDraggedIndex && currentDraggedIndex >= 0)
             {
