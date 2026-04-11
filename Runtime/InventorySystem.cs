@@ -149,66 +149,15 @@ namespace Assets.InventorySystem.Runtime
         {
             string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
 
-            bool swap = false;
-            if (items[index] != null && index != currentDraggedIndex && currentDraggedIndex >= 0)
-            {
-                swap = true;
+            bool swap = TrySwapItemIntoDraggedSlot(index, containerId);
 
-                // Move icon/background from target to dragged slot
-                var targetSlot = slots[index];
-                var draggedSlot = slots[currentDraggedIndex];
-
-                var targetIcon = targetSlot.Q<VisualElement>("Icon");
-                var targetCount = targetSlot.Q<Label>("Count");
-                var draggedIcon = draggedSlot.Q<VisualElement>("Icon");
-                var draggedCount = draggedSlot.Q<Label>("Count");
-
-                // Copy target item visual to dragged
-                draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
-                draggedIcon.style.opacity = targetIcon.style.opacity;
-                draggedCount.text = targetCount?.text;
-
-                // Copy item data
-                items[currentDraggedIndex] = items[index];
-
-                playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, items[currentDraggedIndex].Id, 1);
-            }
-
-            // Set new item visuals on target slot
-            var newIcon = slots[index].Q<VisualElement>("Icon");
-            var newCount = slots[index].Q<Label>("Count");
-
-            if (newIcon != null)
-            {
-                newIcon.style.backgroundImage = new StyleBackground(itemSO.icon);
-                newIcon.style.opacity = 0.9f;
-            }
-            if (newCount != null)
-            {
-                newCount.text = "1";
-            }
-
-            items[index] = itemSO;
+            SetSlotVisual(index, itemSO);
 
             playerNetworkInventory.SyncAddItemRpc(containerId, index, itemSO.Id, 1);
 
             if (currentDraggedIndex >= 0 && currentDraggedIndex != index && swap == false)
             {
-                // Clear dragged slot visuals
-                var draggedIcon = slots[currentDraggedIndex].Q<VisualElement>("Icon");
-                var draggedCount = slots[currentDraggedIndex].Q<Label>("Count");
-
-                if (draggedIcon != null)
-                {
-                    draggedIcon.style.backgroundImage = null;
-                    draggedIcon.style.opacity = 1f;
-                }
-                if (draggedCount != null)
-                {
-                    draggedCount.text = string.Empty;
-                }
-
-                items[currentDraggedIndex] = null;
+                ClearSlotVisual(currentDraggedIndex);
                 playerNetworkInventory.SyncRemoveItemRpc(containerId, currentDraggedIndex);
             }
 
@@ -294,12 +243,9 @@ namespace Assets.InventorySystem.Runtime
         {
             if (currentDraggedIndex >= 0)
             {
-                // Restore the icon background to the original slot
-                var icon = slots[currentDraggedIndex].Q<VisualElement>("Icon");
-                if (icon != null && items[currentDraggedIndex] != null)
+                if (items[currentDraggedIndex] != null)
                 {
-                    icon.style.backgroundImage = new StyleBackground(items[currentDraggedIndex].icon);
-                    icon.style.opacity = 0.9f;
+                    SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex]);
                 }
 
                 draggedElement.RemoveFromHierarchy();
@@ -528,6 +474,32 @@ namespace Assets.InventorySystem.Runtime
             }
 
             items[slotIndex] = null;
+        }
+
+        private bool TrySwapItemIntoDraggedSlot(int index, string containerId)
+        {
+            if (items[index] == null || index == currentDraggedIndex || currentDraggedIndex < 0)
+                return false;
+
+            var targetSlot = slots[index];
+            var draggedSlot = slots[currentDraggedIndex];
+
+            var targetIcon = targetSlot.Q<VisualElement>("Icon");
+            var targetCount = targetSlot.Q<Label>("Count");
+            var draggedIcon = draggedSlot.Q<VisualElement>("Icon");
+            var draggedCount = draggedSlot.Q<Label>("Count");
+
+            // Copy target item visual to dragged
+            draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
+            draggedIcon.style.opacity = targetIcon.style.opacity;
+            draggedCount.text = targetCount?.text;
+
+            // Copy item data
+            items[currentDraggedIndex] = items[index];
+
+            playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, items[currentDraggedIndex].Id, 1);
+
+            return true;
         }
     }
 }
