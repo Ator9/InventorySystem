@@ -8,6 +8,7 @@ using UnityEngine.UIElements;
 
 namespace Assets.InventorySystem.Runtime
 {
+    [RequireComponent(typeof(UIDocument))]
     public class InventorySystem : MonoBehaviour
     {
         public static InventorySystem Instance { get; private set; }
@@ -28,7 +29,7 @@ namespace Assets.InventorySystem.Runtime
         [SerializeField] private VisualTreeAsset slotTemplate; // Assign Assets/UI/Inventory/Slot.uxml
 
         private List<VisualElement> slots;
-        private List<ItemSO> items = new();
+        private readonly List<ItemSO> items = new();
         private int currentDraggedIndex = -1;
         private float slotWidth;
         private float slotHeight;
@@ -48,6 +49,8 @@ namespace Assets.InventorySystem.Runtime
             // Set default services if none provided
             inputService ??= new KeyboardInputService();
             audioFeedback ??= new NullAudioFeedback();
+
+            print($"InventorySystem Awake: Instance={Instance}, GameObject={gameObject.name}");
 
             SceneManager.activeSceneChanged += OnSceneChanged;
         }
@@ -334,8 +337,10 @@ namespace Assets.InventorySystem.Runtime
 
         private void CreateBackground()
         {
-            Background = new VisualElement();
-            Background.name = "InventoryBackground";
+            Background = new VisualElement
+            {
+                name = "InventoryBackground"
+            };
 
             // Style the background
             Background.style.position = Position.Absolute;
