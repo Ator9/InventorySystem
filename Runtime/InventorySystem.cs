@@ -181,18 +181,7 @@ namespace Assets.InventorySystem.Runtime
             {
                 currentDraggedIndex = slotIndex;
 
-                draggedElement = new Image { sprite = items[currentDraggedIndex].icon };
-                draggedElement.style.width = slotWidth;
-                draggedElement.style.height = slotHeight;
-                draggedElement.style.position = Position.Absolute;
-                draggedElement.pickingMode = PickingMode.Ignore;
-
-                // Convert screen coordinates to local coordinates
-                Vector2 localMousePosition = Root.WorldToLocal(evt.position);
-                draggedElement.style.left = localMousePosition.x;
-                draggedElement.style.top = localMousePosition.y;
-
-                Root.Add(draggedElement);
+                CreateDraggedElement(items[currentDraggedIndex], evt.position);
 
                 // Hide the icon from the slot while dragging (do not Clear() the slot)
                 slot.Q<VisualElement>("Icon").style.backgroundImage = null;
@@ -203,10 +192,7 @@ namespace Assets.InventorySystem.Runtime
         {
             if (draggedElement != null)
             {
-                // Convert screen coordinates to local coordinates
-                Vector2 localMousePosition = Root.WorldToLocal(evt.position);
-                draggedElement.style.left = localMousePosition.x;
-                draggedElement.style.top = localMousePosition.y;
+                UpdateDraggedElementPosition(evt.position);
             }
         }
 
@@ -219,8 +205,7 @@ namespace Assets.InventorySystem.Runtime
 
             AddItemToSlot(targetIndex, items[currentDraggedIndex]);
 
-            draggedElement.RemoveFromHierarchy();
-            draggedElement = null;
+            RemoveDraggedElement();
             currentDraggedIndex = -1;
         }
 
@@ -248,8 +233,7 @@ namespace Assets.InventorySystem.Runtime
                     SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex]);
                 }
 
-                draggedElement.RemoveFromHierarchy();
-                draggedElement = null;
+                RemoveDraggedElement();
                 currentDraggedIndex = -1;
 
                 audioFeedback?.PlayItemMove();
@@ -500,6 +484,37 @@ namespace Assets.InventorySystem.Runtime
             playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, items[currentDraggedIndex].Id, 1);
 
             return true;
+        }
+
+        private void CreateDraggedElement(ItemSO itemSO, Vector2 pointerPosition)
+        {
+            draggedElement = new Image { sprite = itemSO.icon };
+            draggedElement.style.width = slotWidth;
+            draggedElement.style.height = slotHeight;
+            draggedElement.style.position = Position.Absolute;
+            draggedElement.pickingMode = PickingMode.Ignore;
+
+            UpdateDraggedElementPosition(pointerPosition);
+            Root.Add(draggedElement);
+        }
+
+        private void UpdateDraggedElementPosition(Vector2 pointerPosition)
+        {
+            if (draggedElement == null)
+                return;
+
+            Vector2 localMousePosition = Root.WorldToLocal(pointerPosition);
+            draggedElement.style.left = localMousePosition.x;
+            draggedElement.style.top = localMousePosition.y;
+        }
+
+        private void RemoveDraggedElement()
+        {
+            if (draggedElement == null)
+                return;
+
+            draggedElement.RemoveFromHierarchy();
+            draggedElement = null;
         }
     }
 }
