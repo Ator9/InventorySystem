@@ -71,12 +71,12 @@ namespace Assets.InventorySystem.Runtime
             CreateBackground(); // Create background color
 
             for (int i = 0; i < lootSlots; i++)
-                Root.Q("LootSlots").Add(CreateSlot());
+                RootLootSlots.Add(CreateSlot());
 
             // Setup slots (ToList starts at index 0)
             slots = Root.Q("BottomSlots").Children().ToList();
             slots.AddRange(Root.Q("MiddleSlots").Children().ToList());
-            slots.AddRange(Root.Q("LootSlots").Children().ToList());
+            slots.AddRange(RootLootSlots.Children().ToList());
 
             for (int i = 0; i < slots.Count; i++)
             {
@@ -104,7 +104,8 @@ namespace Assets.InventorySystem.Runtime
             // Show only needed slots for the container, hide the rest
             for (int i = 0; i < lootSlots; i++)
             {
-                Root.Q("LootSlots").Children().ElementAt(i).style.display = i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
+                RootLootSlots.Children().ElementAt(i).style.display =
+                    i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             RootLootSlots.style.display = DisplayStyle.Flex;
@@ -171,10 +172,13 @@ namespace Assets.InventorySystem.Runtime
         private void OnPointerDown(PointerDownEvent evt)
         {
             // Check if Body (Tab) is active to allow moving items
-            if (Root.Q<VisualElement>("Body").style.display == DisplayStyle.None) return;
+            if (RootBody.style.display == DisplayStyle.None) return;
 
             var slot = evt.currentTarget as VisualElement;
             var slotIndex = slots.IndexOf(slot);
+
+            if (slotIndex < 0)
+                return;
 
             // Check if the slot has an item
             if (items[slotIndex] != null)
@@ -184,16 +188,15 @@ namespace Assets.InventorySystem.Runtime
                 CreateDraggedElement(items[currentDraggedIndex], evt.position);
 
                 // Hide the icon from the slot while dragging (do not Clear() the slot)
-                slot.Q<VisualElement>("Icon").style.backgroundImage = null;
+                var icon = GetSlotIcon(slotIndex);
+                if (icon != null)
+                    icon.style.backgroundImage = null;
             }
         }
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
-            if (draggedElement != null)
-            {
-                UpdateDraggedElementPosition(evt.position);
-            }
+            UpdateDraggedElementPosition(evt.position);
         }
 
         // Add item to slot if it's a slot
@@ -424,8 +427,8 @@ namespace Assets.InventorySystem.Runtime
             if (itemSO == null)
                 return;
 
-            var icon = slots[slotIndex].Q<VisualElement>("Icon");
-            var count = slots[slotIndex].Q<Label>("Count");
+            var icon = GetSlotIcon(slotIndex);
+            var count = GetSlotCount(slotIndex);
 
             if (icon != null)
             {
@@ -443,8 +446,8 @@ namespace Assets.InventorySystem.Runtime
 
         private void ClearSlotVisual(int slotIndex)
         {
-            var icon = slots[slotIndex].Q<VisualElement>("Icon");
-            var count = slots[slotIndex].Q<Label>("Count");
+            var icon = GetSlotIcon(slotIndex);
+            var count = GetSlotCount(slotIndex);
 
             if (icon != null)
             {
@@ -465,18 +468,20 @@ namespace Assets.InventorySystem.Runtime
             if (items[index] == null || index == currentDraggedIndex || currentDraggedIndex < 0)
                 return false;
 
-            var targetSlot = slots[index];
-            var draggedSlot = slots[currentDraggedIndex];
+            var targetIcon = GetSlotIcon(index);
+            var targetCount = GetSlotCount(index);
+            var draggedIcon = GetSlotIcon(currentDraggedIndex);
+            var draggedCount = GetSlotCount(currentDraggedIndex);
 
-            var targetIcon = targetSlot.Q<VisualElement>("Icon");
-            var targetCount = targetSlot.Q<Label>("Count");
-            var draggedIcon = draggedSlot.Q<VisualElement>("Icon");
-            var draggedCount = draggedSlot.Q<Label>("Count");
+            if (targetIcon == null || draggedIcon == null)
+                return false;
 
             // Copy target item visual to dragged
             draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
             draggedIcon.style.opacity = targetIcon.style.opacity;
-            draggedCount.text = targetCount?.text;
+
+            if (draggedCount != null)
+                draggedCount.text = targetCount?.text;
 
             // Copy item data
             items[currentDraggedIndex] = items[index];
@@ -515,6 +520,16 @@ namespace Assets.InventorySystem.Runtime
 
             draggedElement.RemoveFromHierarchy();
             draggedElement = null;
+        }
+
+        private VisualElement GetSlotIcon(int slotIndex)
+        {
+            return slots[slotIndex].Q<VisualElement>("Icon");
+        }
+
+        private Label GetSlotCount(int slotIndex)
+        {
+            return slots[slotIndex].Q<Label>("Count");
         }
     }
 }
