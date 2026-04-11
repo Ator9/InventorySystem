@@ -114,10 +114,28 @@ namespace Assets.InventorySystem.Runtime
         {
             RootLootSlots.style.display = DisplayStyle.None;
 
+            if (CurrentLootContainer == null)
+                return;
+
             for (int i = 0; i < CurrentLootContainer.slots; i++)
             {
-                slots[i + baseSlots].Clear();
-                items[i + baseSlots] = null;
+                int slotIndex = i + baseSlots;
+
+                var icon = slots[slotIndex].Q<VisualElement>("Icon");
+                var count = slots[slotIndex].Q<Label>("Count");
+
+                if (icon != null)
+                {
+                    icon.style.backgroundImage = null;
+                    icon.style.opacity = 1f;
+                }
+
+                if (count != null)
+                {
+                    count.text = string.Empty;
+                }
+
+                items[slotIndex] = null;
             }
 
             CurrentLootContainer = null;
@@ -317,7 +335,26 @@ namespace Assets.InventorySystem.Runtime
         // Fill loot container
         public void FillLootContainer(ItemSO item, int slot)
         {
-            AddItemToSlot(slot + baseSlots, item);
+            if (item == null)
+                return;
+
+            int slotIndex = slot + baseSlots;
+
+            var icon = slots[slotIndex].Q<VisualElement>("Icon");
+            var count = slots[slotIndex].Q<Label>("Count");
+
+            if (icon != null)
+            {
+                icon.style.backgroundImage = new StyleBackground(item.icon);
+                icon.style.opacity = 0.9f;
+            }
+
+            if (count != null)
+            {
+                count.text = "1";
+            }
+
+            items[slotIndex] = item;
         }
 
         public void ClearInventory()
