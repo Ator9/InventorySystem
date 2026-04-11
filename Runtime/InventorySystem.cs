@@ -119,23 +119,7 @@ namespace Assets.InventorySystem.Runtime
 
             for (int i = 0; i < CurrentLootContainer.slots; i++)
             {
-                int slotIndex = i + baseSlots;
-
-                var icon = slots[slotIndex].Q<VisualElement>("Icon");
-                var count = slots[slotIndex].Q<Label>("Count");
-
-                if (icon != null)
-                {
-                    icon.style.backgroundImage = null;
-                    icon.style.opacity = 1f;
-                }
-
-                if (count != null)
-                {
-                    count.text = string.Empty;
-                }
-
-                items[slotIndex] = null;
+                ClearSlotVisual(i + baseSlots);
             }
 
             CurrentLootContainer = null;
@@ -155,16 +139,10 @@ namespace Assets.InventorySystem.Runtime
         public void FillInventoryFromDatabase(string itemId, int amount, string containerId, int slot)
         {
             ItemSO itemSO = GameManager.AssetManager.GetItemById(itemId);
-            if (itemSO == null) return;
+            if (itemSO == null)
+                return;
 
-            var icon = slots[slot].Q<VisualElement>("Icon");
-            var count = slots[slot].Q<Label>("Count");
-
-            icon.style.backgroundImage = new StyleBackground(itemSO.icon);
-            icon.style.opacity = 0.9f;
-            count.text = amount > 1 ? amount.ToString() : string.Empty;
-
-            items[slot] = itemSO;
+            SetSlotVisual(slot, itemSO, amount);
         }
 
         public void AddItemToSlot(int index, ItemSO itemSO)
@@ -338,43 +316,14 @@ namespace Assets.InventorySystem.Runtime
             if (item == null)
                 return;
 
-            int slotIndex = slot + baseSlots;
-
-            var icon = slots[slotIndex].Q<VisualElement>("Icon");
-            var count = slots[slotIndex].Q<Label>("Count");
-
-            if (icon != null)
-            {
-                icon.style.backgroundImage = new StyleBackground(item.icon);
-                icon.style.opacity = 0.9f;
-            }
-
-            if (count != null)
-            {
-                count.text = "1";
-            }
-
-            items[slotIndex] = item;
+            SetSlotVisual(slot + baseSlots, item);
         }
 
         public void ClearInventory()
         {
             for (int i = 0; i < slots.Count; i++)
             {
-                var icon = slots[i].Q<VisualElement>("Icon");
-                var count = slots[i].Q<Label>("Count");
-
-                if (icon != null)
-                {
-                    icon.style.backgroundImage = null;
-                    icon.style.opacity = 1f;
-                }
-                if (count != null)
-                {
-                    count.text = string.Empty;
-                }
-
-                items[i] = null;
+                ClearSlotVisual(i);
             }
 
             //selectedSlot = -1;
@@ -538,6 +487,47 @@ namespace Assets.InventorySystem.Runtime
         private void OnDestroy()
         {
             SceneManager.activeSceneChanged -= OnSceneChanged;
+        }
+
+        private void SetSlotVisual(int slotIndex, ItemSO itemSO, int amount = 1)
+        {
+            if (itemSO == null)
+                return;
+
+            var icon = slots[slotIndex].Q<VisualElement>("Icon");
+            var count = slots[slotIndex].Q<Label>("Count");
+
+            if (icon != null)
+            {
+                icon.style.backgroundImage = new StyleBackground(itemSO.icon);
+                icon.style.opacity = 0.9f;
+            }
+
+            if (count != null)
+            {
+                count.text = amount > 1 ? amount.ToString() : string.Empty;
+            }
+
+            items[slotIndex] = itemSO;
+        }
+
+        private void ClearSlotVisual(int slotIndex)
+        {
+            var icon = slots[slotIndex].Q<VisualElement>("Icon");
+            var count = slots[slotIndex].Q<Label>("Count");
+
+            if (icon != null)
+            {
+                icon.style.backgroundImage = null;
+                icon.style.opacity = 1f;
+            }
+
+            if (count != null)
+            {
+                count.text = string.Empty;
+            }
+
+            items[slotIndex] = null;
         }
     }
 }
