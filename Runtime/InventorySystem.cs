@@ -148,6 +148,9 @@ namespace Assets.InventorySystem.Runtime
 
         public void AddItemToSlot(int index, ItemSO itemSO)
         {
+            if (!IsValidSlotIndex(index) || itemSO == null)
+                return;
+
             string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
 
             bool swap = TrySwapItemIntoDraggedSlot(index, containerId);
@@ -166,32 +169,25 @@ namespace Assets.InventorySystem.Runtime
                 UpdateItemInHand();
 
             audioFeedback?.PlayItemMove();
-            currentDraggedIndex = -1;
+            ClearDraggedState();
         }
 
         private void OnPointerDown(PointerDownEvent evt)
         {
             // Check if Body (Tab) is active to allow moving items
-            if (RootBody.style.display == DisplayStyle.None) return;
+            if (!IsInventoryOpen) return;
 
-            var slot = evt.currentTarget as VisualElement;
-            var slotIndex = slots.IndexOf(slot);
+            var slotIndex = GetSlotIndex(evt.currentTarget as VisualElement);
 
-            if (slotIndex < 0)
+            if (!HasItem(slotIndex))
                 return;
 
-            // Check if the slot has an item
-            if (items[slotIndex] != null)
-            {
-                currentDraggedIndex = slotIndex;
+            currentDraggedIndex = slotIndex;
 
-                CreateDraggedElement(items[currentDraggedIndex], evt.position);
+            CreateDraggedElement(DraggedItem, evt.position);
 
-                // Hide the icon from the slot while dragging (do not Clear() the slot)
-                var icon = GetSlotIcon(slotIndex);
-                if (icon != null)
-                    icon.style.backgroundImage = null;
-            }
+            // Hide the icon from the slot while dragging (do not Clear() the slot)
+            HideSlotIcon(slotIndex);
         }
 
         private void OnPointerMove(PointerMoveEvent evt)
@@ -202,45 +198,49 @@ namespace Assets.InventorySystem.Runtime
         // Add item to slot if it's a slot
         private void OnPointerUp(PointerUpEvent evt)
         {
-            if (currentDraggedIndex == -1) return;
+            if (!IsDraggingItem) return;
 
-            var targetIndex = slots.IndexOf(evt.currentTarget as VisualElement);
+            var targetIndex = GetSlotIndex(evt.currentTarget as VisualElement);
 
-            AddItemToSlot(targetIndex, items[currentDraggedIndex]);
+            if (!IsValidSlotIndex(targetIndex))
+            {
+                RestoreItem();
+                return;
+            }
+
+            AddItemToSlot(targetIndex, DraggedItem);
 
             RemoveDraggedElement();
-            currentDraggedIndex = -1;
         }
 
         // Restore the item back if the target is not a slot
         private void OnGlobalPointerUp(PointerUpEvent evt)
         {
-            if (currentDraggedIndex == -1) return;
+            if (!IsDraggingItem) return;
 
-            if (!slots.Contains(evt.currentTarget as VisualElement))
+            if (!IsValidSlotIndex(GetSlotIndex(evt.currentTarget as VisualElement)))
                 RestoreItem();
         }
 
         private void OnApplicationFocus(bool hasFocus)
         {
-            if (hasFocus == false)
+            if (!hasFocus)
                 RestoreItem();
         }
 
         private void RestoreItem()
         {
-            if (currentDraggedIndex >= 0)
+            if (!IsDraggingItem) return;
+
+            if (HasItem(currentDraggedIndex))
             {
-                if (items[currentDraggedIndex] != null)
-                {
-                    SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex]);
-                }
-
-                RemoveDraggedElement();
-                currentDraggedIndex = -1;
-
-                audioFeedback?.PlayItemMove();
+                SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex]);
             }
+
+            RemoveDraggedElement();
+            ClearDraggedState();
+
+            audioFeedback?.PlayItemMove();
         }
 
         // Fill loot container
@@ -465,7 +465,7 @@ namespace Assets.InventorySystem.Runtime
 
         private bool TrySwapItemIntoDraggedSlot(int index, string containerId)
         {
-            if (items[index] == null || index == currentDraggedIndex || currentDraggedIndex < 0)
+            if (!HasItem(index) || index == currentDraggedIndex || currentDraggedIndex < 0)
                 return false;
 
             var targetIcon = GetSlotIcon(index);
@@ -486,7 +486,7 @@ namespace Assets.InventorySystem.Runtime
             // Copy item data
             items[currentDraggedIndex] = items[index];
 
-            playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, items[currentDraggedIndex].Id, 1);
+            playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, DraggedItem.Id, 1);
 
             return true;
         }
@@ -524,12 +524,50 @@ namespace Assets.InventorySystem.Runtime
 
         private VisualElement GetSlotIcon(int slotIndex)
         {
-            return slots[slotIndex].Q<VisualElement>("Icon");
+            var slot = GetSlot(slotIndex);
+            return slot?.Q<VisualElement>("Icon");
         }
 
         private Label GetSlotCount(int slotIndex)
         {
-            return slots[slotIndex].Q<Label>("Count");
+            var slot = GetSlot(slotIndex);
+            return slot?.Q<Label>("Count");
         }
+
+        private VisualElement GetSlot(int slotIndex)
+        {
+            return IsValidSlotIndex(slotIndex) ? slots[slotIndex] : null;
+        }
+
+        private bool IsValidSlotIndex(int slotIndex)
+        {
+            return slots != null && slotIndex >= 0 && slotIndex < slots.Count;
+        }
+
+        private void ClearDraggedState()
+        {
+            currentDraggedIndex = -1;
+        }
+
+        public bool IsDraggingItem => currentDraggedIndex >= 0;
+
+        private int GetSlotIndex(VisualElement element)
+        {
+            return slots == null ? -1 : slots.IndexOf(element);
+        }
+
+        private bool HasItem(int slotIndex)
+        {
+            return IsValidSlotIndex(slotIndex) && items[slotIndex] != null;
+        }
+
+        private void HideSlotIcon(int slotIndex)
+        {
+            var icon = GetSlotIcon(slotIndex);
+            if (icon != null)
+                icon.style.backgroundImage = null;
+        }
+
+        private ItemSO DraggedItem => HasItem(currentDraggedIndex) ? items[currentDraggedIndex] : null;
     }
 }
