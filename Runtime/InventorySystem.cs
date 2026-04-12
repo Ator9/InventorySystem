@@ -50,8 +50,6 @@ namespace Assets.InventorySystem.Runtime
             inputService ??= new KeyboardInputService();
             audioFeedback ??= new NullAudioFeedback();
 
-            print($"InventorySystem Awake: Instance={Instance}, GameObject={gameObject.name}");
-
             SceneManager.activeSceneChanged += OnSceneChanged;
         }
 
