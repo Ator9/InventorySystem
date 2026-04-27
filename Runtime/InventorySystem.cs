@@ -19,12 +19,6 @@ namespace Assets.InventorySystem.Runtime
         public VisualElement RootLootSlots { get; private set; }
         public VisualElement Background { get; private set; }
 
-        [Header("Initial Visibility")]
-        [SerializeField] private bool startHidden = true; // Live Game default: hidden
-
-        [Header("Input")]
-        [SerializeField] private bool allowToggleKey = true; // Menu: set false to disable Tab toggling
-
         [Header("Templates")]
         [SerializeField] private VisualTreeAsset slotTemplate; // Assign Assets/UI/Inventory/Slot.uxml
 
@@ -68,9 +62,7 @@ namespace Assets.InventorySystem.Runtime
             RootBody = Root.Q<VisualElement>("Body");
             RootLootSlots = Root.Q<VisualElement>("LootSlots");
 
-            ApplyInitialValues();
             CreateBackground(); // Create background color
-            CreateInventorySystemUI(); // Create loot filter bar
 
             for (int i = 0; i < safeSlots; i++)
                 RootLootSlots.Add(CreateSlot());
@@ -99,12 +91,15 @@ namespace Assets.InventorySystem.Runtime
             }).ExecuteLater(0);
         }
 
+        public void SetInitialVisibility(bool visible) 
+        { 
+            if (visible) OpenInventory();
+            else CloseInventory(); 
+        }
+
         public void ActivateContainerSlots(LootContainer lootContainer)
         {
             CurrentLootContainer = lootContainer;
-
-            if (lootFilterBar != null)
-                lootFilterBar.style.display = DisplayStyle.None;
 
             // Show only needed slots for the container, hide the rest
             for (int i = 0; i < safeSlots; i++)
@@ -120,9 +115,6 @@ namespace Assets.InventorySystem.Runtime
         {
             RootLootSlots.style.display = DisplayStyle.None;
 
-            if (lootFilterBar != null)
-                lootFilterBar.style.display = DisplayStyle.Flex;
-
             if (CurrentLootContainer == null)
                 return;
 
@@ -136,10 +128,6 @@ namespace Assets.InventorySystem.Runtime
 
         void Update()
         {
-            // Toggle inventory via input service
-            if (allowToggleKey && inputService != null && inputService.TogglePressed())
-                ToggleInventory();
-
             // Select slot with keys
             if (playerNetworkInventory != null)
                 SelectSlot();
@@ -383,9 +371,6 @@ namespace Assets.InventorySystem.Runtime
         {
             // Choose the active InventorySystem based on known GameObjects per scene.
             ResolveActiveInstance(newScene);
-
-            // Reapply scene defaults to avoid inheriting the previous scene’s state
-            ApplyInitialValues();
         }
 
         private void ResolveActiveInstance(Scene scene)
@@ -416,15 +401,6 @@ namespace Assets.InventorySystem.Runtime
                     return;
                 }
             }
-        }
-
-        private void ApplyInitialValues()
-        {
-            if (RootBody != null)
-                RootBody.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
-
-            if (RootLootSlots != null)
-                RootLootSlots.style.display = startHidden ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         private void OnDestroy()
