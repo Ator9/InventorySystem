@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace Assets.InventorySystem.Runtime
 {
     [RequireComponent(typeof(UIDocument))]
-    public class InventorySystem : MonoBehaviour
+    public partial class InventorySystem : MonoBehaviour
     {
         public static InventorySystem Instance { get; private set; }
 
@@ -35,7 +35,7 @@ namespace Assets.InventorySystem.Runtime
         private float slotHeight;
         private int selectedSlot = -1;
         private readonly int baseSlots = 18;
-        private readonly int lootSlots = 120;
+        private readonly int safeSlots = 120;
 
         private PlayerNetworkInventory playerNetworkInventory;
 
@@ -70,8 +70,9 @@ namespace Assets.InventorySystem.Runtime
 
             ApplyInitialValues();
             CreateBackground(); // Create background color
+            CreateInventorySystemUI(); // Create loot filter bar
 
-            for (int i = 0; i < lootSlots; i++)
+            for (int i = 0; i < safeSlots; i++)
                 RootLootSlots.Add(CreateSlot());
 
             // Setup slots (ToList starts at index 0)
@@ -102,8 +103,11 @@ namespace Assets.InventorySystem.Runtime
         {
             CurrentLootContainer = lootContainer;
 
+            if (lootFilterBar != null)
+                lootFilterBar.style.display = DisplayStyle.None;
+
             // Show only needed slots for the container, hide the rest
-            for (int i = 0; i < lootSlots; i++)
+            for (int i = 0; i < safeSlots; i++)
             {
                 RootLootSlots.Children().ElementAt(i).style.display =
                     i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
@@ -115,6 +119,9 @@ namespace Assets.InventorySystem.Runtime
         public void DeactivateContainerSlots()
         {
             RootLootSlots.style.display = DisplayStyle.None;
+
+            if (lootFilterBar != null)
+                lootFilterBar.style.display = DisplayStyle.Flex;
 
             if (CurrentLootContainer == null)
                 return;
