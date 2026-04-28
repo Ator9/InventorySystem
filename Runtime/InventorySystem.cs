@@ -28,8 +28,9 @@ namespace Assets.InventorySystem.Runtime
         private float slotWidth;
         private float slotHeight;
         private int selectedSlot = -1;
-        private readonly int baseSlots = 18;
-        private readonly int safeSlots = 120;
+
+        private const int baseSlots = 18;
+        private const int maxContainerSlots = 120;
 
         private PlayerNetworkInventory playerNetworkInventory;
 
@@ -64,7 +65,7 @@ namespace Assets.InventorySystem.Runtime
 
             CreateBackground(); // Create background color
 
-            for (int i = 0; i < safeSlots; i++)
+            for (int i = 0; i < maxContainerSlots; i++)
                 RootLootSlots.Add(CreateSlot());
 
             // Setup slots (ToList starts at index 0)
@@ -102,7 +103,7 @@ namespace Assets.InventorySystem.Runtime
             CurrentLootContainer = lootContainer;
 
             // Show only needed slots for the container, hide the rest
-            for (int i = 0; i < safeSlots; i++)
+            for (int i = 0; i < maxContainerSlots; i++)
             {
                 RootLootSlots.Children().ElementAt(i).style.display =
                     i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
@@ -118,7 +119,9 @@ namespace Assets.InventorySystem.Runtime
             if (CurrentLootContainer == null)
                 return;
 
-            for (int i = 0; i < CurrentLootContainer.slots; i++)
+            int visibleSlots = Mathf.Min(CurrentLootContainer.slots, maxContainerSlots);
+
+            for (int i = 0; i < visibleSlots; i++)
             {
                 ClearSlotVisual(i + baseSlots);
             }
@@ -147,7 +150,7 @@ namespace Assets.InventorySystem.Runtime
             if (!IsValidSlotIndex(index) || itemSO == null)
                 return;
 
-            string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetContainerId() : "inventory";
+            string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetActiveContainerId() : "inventory";
 
             bool swap = TrySwapItemIntoDraggedSlot(index, containerId);
 
