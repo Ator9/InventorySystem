@@ -30,7 +30,7 @@ namespace Assets.InventorySystem.Runtime
         private int selectedSlot = -1;
 
         private const int baseSlots = 18;
-        private const int maxContainerSlots = 120;
+        private const int maxContainerSlots = 20;
 
         private PlayerNetworkInventory playerNetworkInventory;
 
@@ -38,6 +38,8 @@ namespace Assets.InventorySystem.Runtime
         private IAudioFeedback audioFeedback;
 
         private VisualElement draggedElement;
+
+        public bool IsMenuSafeView => gameObject.name == "MainMenu";
 
         private void Awake()
         {
@@ -142,6 +144,12 @@ namespace Assets.InventorySystem.Runtime
             if (itemSO == null)
                 return;
 
+            if (containerId == LootContainer.SafeContainerId)
+            {
+                FillLootContainer(itemSO, slot);
+                return;
+            }
+
             SetSlotVisual(slot, itemSO, amount);
         }
 
@@ -150,18 +158,19 @@ namespace Assets.InventorySystem.Runtime
             if (!IsValidSlotIndex(index) || itemSO == null)
                 return;
 
-            string containerId = CurrentLootContainer != null ? CurrentLootContainer.GetActiveContainerId() : "inventory";
+            string targetContainerId = GetContainerIdForSlot(index);
+            string sourceContainerId = GetContainerIdForSlot(currentDraggedIndex);
 
-            bool swap = TrySwapItemIntoDraggedSlot(index, containerId);
+            bool swap = TrySwapItemIntoDraggedSlot(index, sourceContainerId);
 
             SetSlotVisual(index, itemSO);
 
-            playerNetworkInventory.SyncAddItemRpc(containerId, index, itemSO.Id, 1);
+            playerNetworkInventory.SyncAddItemRpc(targetContainerId, index, itemSO.Id, 1);
 
             if (currentDraggedIndex >= 0 && currentDraggedIndex != index && swap == false)
             {
                 ClearSlotVisual(currentDraggedIndex);
-                playerNetworkInventory.SyncRemoveItemRpc(containerId, currentDraggedIndex);
+                playerNetworkInventory.SyncRemoveItemRpc(sourceContainerId, currentDraggedIndex);
             }
 
             if (currentDraggedIndex == selectedSlot || index == selectedSlot)
@@ -452,7 +461,7 @@ namespace Assets.InventorySystem.Runtime
             items[slotIndex] = null;
         }
 
-        private bool TrySwapItemIntoDraggedSlot(int index, string containerId)
+        private bool TrySwapItemIntoDraggedSlot(int index, string sourceContainerId)
         {
             if (!HasItem(index) || index == currentDraggedIndex || currentDraggedIndex < 0)
                 return false;
@@ -461,21 +470,21 @@ namespace Assets.InventorySystem.Runtime
             var targetCount = GetSlotCount(index);
             var draggedIcon = GetSlotIcon(currentDraggedIndex);
             var draggedCount = GetSlotCount(currentDraggedIndex);
+            var targetItem = items[index];
 
-            if (targetIcon == null || draggedIcon == null)
+            if (targetIcon == null || draggedIcon == null || targetItem == null)
                 return false;
 
-            // Copy target item visual to dragged
+            // Copy target item visual to dragged slot.
             draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
             draggedIcon.style.opacity = targetIcon.style.opacity;
 
             if (draggedCount != null)
                 draggedCount.text = targetCount?.text;
 
-            // Copy item data
-            items[currentDraggedIndex] = items[index];
+            items[currentDraggedIndex] = targetItem;
 
-            playerNetworkInventory.SyncAddItemRpc(containerId, currentDraggedIndex, DraggedItem.Id, 1);
+            playerNetworkInventory.SyncAddItemRpc(sourceContainerId, currentDraggedIndex, targetItem.Id, 1);
 
             return true;
         }
@@ -558,5 +567,15 @@ namespace Assets.InventorySystem.Runtime
         }
 
         private ItemSO DraggedItem => HasItem(currentDraggedIndex) ? items[currentDraggedIndex] : null;
+
+        private string GetContainerIdForSlot(int slotIndex)
+        {
+            if (slotIndex < baseSlots)
+                return "inventory";
+
+            return CurrentLootContainer != null
+                ? CurrentLootContainer.GetContainerId()
+                : LootContainer.SafeContainerId;
+        }
     }
 }
