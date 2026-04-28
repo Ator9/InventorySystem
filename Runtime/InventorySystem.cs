@@ -29,7 +29,7 @@ namespace Assets.InventorySystem.Runtime
         private float slotHeight;
         private int selectedSlot = -1;
 
-        private const int baseSlots = 18;
+        public const int BaseSlots = 18;
         private const int maxContainerSlots = 20;
 
         private PlayerNetworkInventory playerNetworkInventory;
@@ -123,7 +123,7 @@ namespace Assets.InventorySystem.Runtime
 
             for (int i = 0; i < visibleSlots; i++)
             {
-                ClearSlotVisual(i + baseSlots);
+                ClearSlotVisual(i + BaseSlots);
             }
 
             CurrentLootContainer = null;
@@ -257,7 +257,7 @@ namespace Assets.InventorySystem.Runtime
             if (item == null)
                 return;
 
-            SetSlotVisual(slot + baseSlots, item);
+            SetSlotVisual(slot + BaseSlots, item);
         }
 
         public void ClearInventory()
@@ -570,8 +570,8 @@ namespace Assets.InventorySystem.Runtime
 
         private string GetContainerIdForSlot(int slotIndex)
         {
-            if (slotIndex < baseSlots)
-                return "inventory";
+            if (slotIndex < BaseSlots)
+                return LootContainer.InventoryContainerId;
 
             return CurrentLootContainer != null
                 ? CurrentLootContainer.GetContainerId()
