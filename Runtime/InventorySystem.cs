@@ -30,7 +30,7 @@ namespace Assets.InventorySystem.Runtime
         private int selectedSlot = -1;
 
         public const int BaseSlots = 18;
-        private const int maxContainerSlots = 20;
+        private const int maxContainerSlots = 120;
 
         private PlayerNetworkInventory playerNetworkInventory;
 
