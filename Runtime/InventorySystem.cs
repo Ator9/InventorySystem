@@ -98,12 +98,6 @@ namespace Assets.InventorySystem.Runtime
             }).ExecuteLater(0);
         }
 
-        public void SetInitialVisibility(bool visible) 
-        { 
-            if (visible) OpenInventory();
-            else CloseInventory(); 
-        }
-
         public void ActivateContainerSlots(LootContainer lootContainer)
         {
             CurrentLootContainer = lootContainer;
