@@ -75,7 +75,9 @@ namespace Assets.InventorySystem.Runtime
             // Setup slots (ToList starts at index 0)
             slots = Root.Q("BottomSlots").Children().ToList();
             slots.AddRange(Root.Q("MiddleSlots").Children().ToList());
-            slots.AddRange(RootLootSlots.Children().ToList());
+
+            // Reverse loot slots so container slot 0 maps to the top visual slot.
+            slots.AddRange(RootLootSlots.Children().Reverse().ToList());
 
             for (int i = 0; i < slots.Count; i++)
             {
@@ -106,11 +108,14 @@ namespace Assets.InventorySystem.Runtime
         {
             CurrentLootContainer = lootContainer;
 
-            // Show only needed slots for the container, hide the rest
+            int visibleSlots = Mathf.Min(CurrentLootContainer.slots, maxContainerSlots);
+
+            // Show the top-most generated slots so container slot 0 appears at the top.
             for (int i = 0; i < maxContainerSlots; i++)
             {
+                bool shouldShow = i >= maxContainerSlots - visibleSlots;
                 RootLootSlots.Children().ElementAt(i).style.display =
-                    i < CurrentLootContainer.slots ? DisplayStyle.Flex : DisplayStyle.None;
+                    shouldShow ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             RootLootSlots.style.display = DisplayStyle.Flex;
