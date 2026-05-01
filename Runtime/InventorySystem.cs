@@ -491,10 +491,14 @@ namespace Assets.InventorySystem.Runtime
 
         private void CreateDraggedElement(ItemSO itemSO, Vector2 pointerPosition)
         {
-            draggedElement = new Image { sprite = itemSO.icon };
-            draggedElement.style.width = slotWidth;
-            draggedElement.style.height = slotHeight;
+            var sourceIcon = GetSlotIcon(currentDraggedIndex);
+
+            draggedElement = new VisualElement();
             draggedElement.style.position = Position.Absolute;
+            draggedElement.style.width = sourceIcon != null ? sourceIcon.resolvedStyle.width : slotWidth;
+            draggedElement.style.height = sourceIcon != null ? sourceIcon.resolvedStyle.height : slotHeight;
+            draggedElement.style.backgroundImage = new StyleBackground(itemSO.icon);
+            draggedElement.style.opacity = 0.9f;
             draggedElement.pickingMode = PickingMode.Ignore;
 
             UpdateDraggedElementPosition(pointerPosition);
