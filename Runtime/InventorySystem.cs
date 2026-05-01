@@ -13,6 +13,7 @@ namespace Assets.InventorySystem.Runtime
     {
         public static InventorySystem Instance { get; private set; }
 
+        private InventoryContextMenu inventoryContextMenu;
         public LootContainer CurrentLootContainer { get; private set; }
         public VisualElement Root { get; private set; }
         public VisualElement RootBody { get; private set; }
@@ -44,6 +45,7 @@ namespace Assets.InventorySystem.Runtime
             // Set default services if none provided
             inputService ??= new KeyboardInputService();
             audioFeedback ??= new NullAudioFeedback();
+            inventoryContextMenu = GetComponent<InventoryContextMenu>();
 
             SceneManager.activeSceneChanged += OnSceneChanged;
         }
@@ -64,6 +66,8 @@ namespace Assets.InventorySystem.Runtime
             RootLootSlots = Root.Q<VisualElement>("LootSlots");
 
             CreateBackground(); // Create background color
+
+            inventoryContextMenu?.Initialize();
 
             for (int i = 0; i < maxContainerSlots; i++)
                 RootLootSlots.Add(CreateSlot());
@@ -182,12 +186,21 @@ namespace Assets.InventorySystem.Runtime
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            // Check if Body (Tab) is active to allow moving items
             if (!IsInventoryOpen) return;
 
             var slotIndex = GetSlotIndex(evt.currentTarget as VisualElement);
 
             if (!HasItem(slotIndex))
+                return;
+
+            if (evt.button == (int)MouseButton.RightMouse)
+            {
+                inventoryContextMenu?.Show(slotIndex, evt.position);
+                evt.StopPropagation();
+                return;
+            }
+
+            if (evt.button != (int)MouseButton.LeftMouse)
                 return;
 
             currentDraggedIndex = slotIndex;
@@ -580,6 +593,39 @@ namespace Assets.InventorySystem.Runtime
             return CurrentLootContainer != null
                 ? CurrentLootContainer.GetContainerId()
                 : LootContainer.SafeContainerId;
+        }
+
+        public bool HasItemAt(int slotIndex)
+        {
+            return HasItem(slotIndex);
+        }
+
+        public ItemSO GetItemAt(int slotIndex)
+        {
+            return HasItem(slotIndex) ? items[slotIndex] : null;
+        }
+
+        public void SellItemAt(int slotIndex)
+        {
+            if (!HasItem(slotIndex))
+                return;
+
+            var localPlayer = LocalPlayerManager.Instance != null ? LocalPlayerManager.Instance.LocalPlayer : null;
+            if (localPlayer == null || playerNetworkInventory == null)
+                return;
+
+            var playerNetwork = localPlayer.GetComponent<PlayerNetwork>();
+            if (playerNetwork == null)
+                return;
+
+            ItemSO item = items[slotIndex];
+            string containerId = GetContainerIdForSlot(slotIndex);
+
+            ClearSlotVisual(slotIndex);
+            playerNetworkInventory.SyncRemoveItemRpc(containerId, slotIndex);
+            playerNetwork.UpdateMoneyRpc(item.cost);
+
+            audioFeedback?.PlayItemMove();
         }
     }
 }
