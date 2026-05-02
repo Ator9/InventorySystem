@@ -606,24 +606,16 @@ namespace Assets.InventorySystem.Runtime
 
         public void SellItemAt(int slotIndex)
         {
-            if (!HasItem(slotIndex))
+            if (!HasItem(slotIndex) || playerNetworkInventory == null)
                 return;
 
-            var localPlayer = LocalPlayerManager.Instance != null ? LocalPlayerManager.Instance.LocalPlayer : null;
-            if (localPlayer == null || playerNetworkInventory == null)
-                return;
-
-            var playerNetwork = localPlayer.GetComponent<PlayerNetwork>();
-            if (playerNetwork == null)
-                return;
-
-            ItemSO item = items[slotIndex];
             string containerId = GetContainerIdForSlot(slotIndex);
+            playerNetworkInventory.SellItemRpc(containerId, slotIndex);
+        }
 
+        public void ClearItemAt(int slotIndex)
+        {
             ClearSlotVisual(slotIndex);
-            playerNetworkInventory.SyncRemoveItemRpc(containerId, slotIndex);
-            playerNetwork.UpdateMoneyRpc(item.cost);
-
             audioFeedback?.PlayItemMove();
         }
     }
