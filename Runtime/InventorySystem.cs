@@ -134,8 +134,6 @@ namespace Assets.InventorySystem.Runtime
 
         void Update()
         {
-            //print(gameObject.name);
-
             // Select slot with keys
             if (playerNetworkInventory != null)
                 SelectSlot();
