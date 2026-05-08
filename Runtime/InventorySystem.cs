@@ -134,6 +134,9 @@ namespace Assets.InventorySystem.Runtime
 
         void Update()
         {
+            if (!InteractionEnabled)
+                return;
+
             // Select slot with keys
             if (playerNetworkInventory != null)
                 SelectSlot();
@@ -183,7 +186,7 @@ namespace Assets.InventorySystem.Runtime
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            if (!IsInventoryOpen) return;
+            if (!InteractionEnabled || !IsInventoryOpen) return;
 
             var slotIndex = GetSlotIndex(evt.currentTarget as VisualElement);
 
@@ -210,13 +213,16 @@ namespace Assets.InventorySystem.Runtime
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
+            if (!InteractionEnabled)
+                return;
+
             UpdateDraggedElementPosition(evt.position);
         }
 
         // Add item to slot if it's a slot
         private void OnPointerUp(PointerUpEvent evt)
         {
-            if (!IsDraggingItem) return;
+            if (!InteractionEnabled || !IsDraggingItem) return;
 
             var targetIndex = GetSlotIndex(evt.currentTarget as VisualElement);
 
@@ -234,7 +240,7 @@ namespace Assets.InventorySystem.Runtime
         // Restore the item back if the target is not a slot
         private void OnGlobalPointerUp(PointerUpEvent evt)
         {
-            if (!IsDraggingItem) return;
+            if (!InteractionEnabled || !IsDraggingItem) return;
 
             if (!IsValidSlotIndex(GetSlotIndex(evt.currentTarget as VisualElement)))
                 RestoreItem();
@@ -615,6 +621,21 @@ namespace Assets.InventorySystem.Runtime
         {
             ClearSlotVisual(slotIndex);
             audioFeedback?.PlayItemMove();
+        }
+
+        public bool InteractionEnabled { get; private set; } = true;
+
+        public void SetInteractionEnabled(bool enabled)
+        {
+            InteractionEnabled = enabled;
+
+            if (!enabled)
+            {
+                inventoryContextMenu?.Hide();
+
+                if (IsDraggingItem)
+                    RestoreItem();
+            }
         }
     }
 }
