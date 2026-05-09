@@ -8,7 +8,8 @@ using UnityEngine.UIElements;
 
 namespace Assets.InventorySystem.Runtime
 {
-    [RequireComponent(typeof(UIDocument))]
+[RequireComponent(typeof(UIDocument))]
+    [RequireComponent(typeof(InventoryContextMenu))]
     public partial class InventorySystem : MonoBehaviour
     {
         public static InventorySystem Instance { get; private set; }
@@ -67,7 +68,7 @@ namespace Assets.InventorySystem.Runtime
 
             CreateBackground(); // Create background color
 
-            inventoryContextMenu?.Initialize();
+            inventoryContextMenu.Initialize();
 
             for (int i = 0; i < maxContainerSlots; i++)
                 RootLootSlots.Add(CreateSlot());
@@ -195,7 +196,7 @@ namespace Assets.InventorySystem.Runtime
 
             if (evt.button == (int)MouseButton.RightMouse)
             {
-                inventoryContextMenu?.Show(slotIndex, evt.position);
+                inventoryContextMenu.Show(slotIndex, evt.position);
                 evt.StopPropagation();
                 return;
             }
@@ -341,6 +342,8 @@ namespace Assets.InventorySystem.Runtime
         public void CloseInventory()
         {
             if (RootBody == null || Background == null) return;
+
+            inventoryContextMenu.Hide();
             RootBody.style.display = DisplayStyle.None;
             Background.style.display = DisplayStyle.None;
         }
@@ -631,7 +634,7 @@ namespace Assets.InventorySystem.Runtime
 
             if (!enabled)
             {
-                inventoryContextMenu?.Hide();
+                inventoryContextMenu.Hide();
 
                 if (IsDraggingItem)
                     RestoreItem();
