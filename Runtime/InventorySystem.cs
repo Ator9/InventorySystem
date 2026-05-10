@@ -173,6 +173,32 @@ namespace Assets.InventorySystem.Runtime
 
             bool swap = TrySwapItemIntoDraggedSlot(index, sourceContainerId);
 
+            if (!swap)
+            {
+                bool isTakingFromOpenContainer = currentDraggedIndex >= BaseSlots && CurrentLootContainer != null;
+
+                if (isTakingFromOpenContainer)
+                {
+                    SetSlotVisual(index, itemSO, draggedAmount);
+                    ClearSlotVisual(currentDraggedIndex);
+
+                    playerNetworkInventory.TakeContainerItemRpc(
+                        sourceContainerId,
+                        currentDraggedIndex,
+                        targetContainerId,
+                        index,
+                        itemSO.Id
+                    );
+
+                    if (currentDraggedIndex == selectedSlot || index == selectedSlot)
+                        UpdateItemInHand();
+
+                    audioFeedback?.PlayItemMove();
+                    ClearDraggedState();
+                    return;
+                }
+            }
+
             SetSlotVisual(index, itemSO, draggedAmount);
 
             playerNetworkInventory.SyncAddItemRpc(targetContainerId, index, itemSO.Id, draggedAmount);
@@ -670,11 +696,7 @@ namespace Assets.InventorySystem.Runtime
 
         public bool CanUseConsumableAt(int slotIndex)
         {
-            if (!HasItem(slotIndex) || items[slotIndex] is not ConsumableSO)
-                return false;
-
-            // Do not consume directly from opened world loot containers.
-            return slotIndex < BaseSlots || CurrentLootContainer == null;
+            return HasItem(slotIndex) && items[slotIndex] is ConsumableSO;
         }
 
         public void UseConsumableAt(int slotIndex, bool useAll)
