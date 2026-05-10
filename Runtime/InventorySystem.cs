@@ -587,11 +587,9 @@ namespace Assets.InventorySystem.Runtime
 
             string text = string.Empty;
 
-            if (itemSO is ConsumableSO consumable && consumable.maxUses > 1)
+            if (itemSO is ConsumableSO consumable)
             {
-                int currentUses = Mathf.Clamp(amount, 0, consumable.maxUses);
-                int percent = Mathf.RoundToInt((currentUses / (float)consumable.maxUses) * 100f);
-                text = percent + "%";
+                text = GetConsumableUsageLabel(consumable, amount);
             }
             else if (amount > 1)
             {
@@ -601,6 +599,36 @@ namespace Assets.InventorySystem.Runtime
 
             count.text = text;
             count.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private string GetConsumableUsageLabel(ConsumableSO consumable, int amount)
+        {
+            int maxUses = Mathf.Max(1, consumable.maxUses);
+            int usesLeft = Mathf.Clamp(amount, 0, maxUses);
+            int totalRestore = GetConsumableTotalRestore(consumable);
+
+            if (totalRestore <= 0)
+                return string.Empty;
+
+            int currentRestore = GetConsumableRestoreValue(totalRestore, maxUses, usesLeft);
+
+            if (maxUses <= 1)
+                return currentRestore.ToString();
+
+            return currentRestore + "/" + totalRestore;
+        }
+
+        private int GetConsumableTotalRestore(ConsumableSO consumable)
+        {
+            return Mathf.Max(0, consumable.health)
+                + Mathf.Max(0, consumable.food)
+                + Mathf.Max(0, consumable.water)
+                + Mathf.Max(0, consumable.energy);
+        }
+
+        private int GetConsumableRestoreValue(int totalRestore, int maxUses, int usesLeft)
+        {
+            return Mathf.RoundToInt(totalRestore * (usesLeft / (float)maxUses));
         }
 
         private VisualElement GetSlot(int slotIndex)
