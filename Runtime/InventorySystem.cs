@@ -26,6 +26,7 @@ namespace Assets.InventorySystem.Runtime
 
         private List<VisualElement> slots;
         private readonly List<ItemSO> items = new();
+        private readonly List<int> itemAmounts = new();
         private int currentDraggedIndex = -1;
         private float slotWidth;
         private float slotHeight;
@@ -86,6 +87,7 @@ namespace Assets.InventorySystem.Runtime
                 slots[i].RegisterCallback<PointerMoveEvent>(OnPointerMove);
                 slots[i].RegisterCallback<PointerUpEvent>(OnPointerUp);
                 items.Add(null);
+                itemAmounts.Add(0);
             }
 
             // Register global PointerUpEvent listener
@@ -149,13 +151,15 @@ namespace Assets.InventorySystem.Runtime
             if (itemSO == null)
                 return;
 
+            int displayAmount = NormalizeItemAmount(itemSO, amount);
+
             if (containerId == LootContainer.SafeContainerId)
             {
-                FillLootContainer(itemSO, slot);
+                FillLootContainer(itemSO, slot, displayAmount);
                 return;
             }
 
-            SetSlotVisual(slot, itemSO, amount);
+            SetSlotVisual(slot, itemSO, displayAmount);
         }
 
         public void AddItemToSlot(int index, ItemSO itemSO)
@@ -165,12 +169,13 @@ namespace Assets.InventorySystem.Runtime
 
             string targetContainerId = GetContainerIdForSlot(index);
             string sourceContainerId = GetContainerIdForSlot(currentDraggedIndex);
+            int draggedAmount = DraggedItemAmount;
 
             bool swap = TrySwapItemIntoDraggedSlot(index, sourceContainerId);
 
-            SetSlotVisual(index, itemSO);
+            SetSlotVisual(index, itemSO, draggedAmount);
 
-            playerNetworkInventory.SyncAddItemRpc(targetContainerId, index, itemSO.Id, 1);
+            playerNetworkInventory.SyncAddItemRpc(targetContainerId, index, itemSO.Id, draggedAmount);
 
             if (currentDraggedIndex >= 0 && currentDraggedIndex != index && swap == false)
             {
@@ -259,7 +264,7 @@ namespace Assets.InventorySystem.Runtime
 
             if (HasItem(currentDraggedIndex))
             {
-                SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex]);
+                SetSlotVisual(currentDraggedIndex, items[currentDraggedIndex], itemAmounts[currentDraggedIndex]);
             }
 
             RemoveDraggedElement();
@@ -269,12 +274,12 @@ namespace Assets.InventorySystem.Runtime
         }
 
         // Fill loot container
-        public void FillLootContainer(ItemSO item, int slot)
+        public void FillLootContainer(ItemSO item, int slot, int amount = 1)
         {
             if (item == null)
                 return;
 
-            SetSlotVisual(slot + BaseSlots, item);
+            SetSlotVisual(slot + BaseSlots, item, amount);
         }
 
         public void ClearInventory()
@@ -283,10 +288,6 @@ namespace Assets.InventorySystem.Runtime
             {
                 ClearSlotVisual(i);
             }
-
-            //selectedSlot = -1;
-            //for (int i = 0; i < Mathf.Min(6, slots.Count); i++)
-            //    slots[i].style.borderBottomColor = Color.grey;
         }
 
         // Select slot with number keys via input service
@@ -444,6 +445,8 @@ namespace Assets.InventorySystem.Runtime
             if (itemSO == null)
                 return;
 
+            amount = NormalizeItemAmount(itemSO, amount);
+
             var icon = GetSlotIcon(slotIndex);
             var count = GetSlotCount(slotIndex);
 
@@ -453,12 +456,10 @@ namespace Assets.InventorySystem.Runtime
                 icon.style.opacity = 0.9f;
             }
 
-            if (count != null)
-            {
-                count.text = amount > 1 ? amount.ToString() : string.Empty;
-            }
+            SetSlotCount(slotIndex, count, itemSO, amount);
 
             items[slotIndex] = itemSO;
+            itemAmounts[slotIndex] = amount;
         }
 
         private void ClearSlotVisual(int slotIndex)
@@ -472,12 +473,10 @@ namespace Assets.InventorySystem.Runtime
                 icon.style.opacity = 1f;
             }
 
-            if (count != null)
-            {
-                count.text = string.Empty;
-            }
+            SetSlotCount(slotIndex, count, null, 0);
 
             items[slotIndex] = null;
+            itemAmounts[slotIndex] = 0;
         }
 
         private bool TrySwapItemIntoDraggedSlot(int index, string sourceContainerId)
@@ -486,10 +485,10 @@ namespace Assets.InventorySystem.Runtime
                 return false;
 
             var targetIcon = GetSlotIcon(index);
-            var targetCount = GetSlotCount(index);
             var draggedIcon = GetSlotIcon(currentDraggedIndex);
             var draggedCount = GetSlotCount(currentDraggedIndex);
             var targetItem = items[index];
+            int targetAmount = itemAmounts[index];
 
             if (targetIcon == null || draggedIcon == null || targetItem == null)
                 return false;
@@ -498,12 +497,12 @@ namespace Assets.InventorySystem.Runtime
             draggedIcon.style.backgroundImage = targetIcon.style.backgroundImage;
             draggedIcon.style.opacity = targetIcon.style.opacity;
 
-            if (draggedCount != null)
-                draggedCount.text = targetCount?.text;
+            SetSlotCount(currentDraggedIndex, draggedCount, targetItem, targetAmount);
 
             items[currentDraggedIndex] = targetItem;
+            itemAmounts[currentDraggedIndex] = targetAmount;
 
-            playerNetworkInventory.SyncAddItemRpc(sourceContainerId, currentDraggedIndex, targetItem.Id, 1);
+            playerNetworkInventory.SyncAddItemRpc(sourceContainerId, currentDraggedIndex, targetItem.Id, targetAmount);
 
             return true;
         }
@@ -555,6 +554,29 @@ namespace Assets.InventorySystem.Runtime
             return slot?.Q<Label>("Count");
         }
 
+        private void SetSlotCount(int slotIndex, Label count, ItemSO itemSO, int amount)
+        {
+            if (count == null)
+                return;
+
+            string text = string.Empty;
+
+            if (itemSO is ConsumableSO consumable && consumable.maxUses > 1)
+            {
+                int currentUses = Mathf.Clamp(amount, 0, consumable.maxUses);
+                int percent = Mathf.RoundToInt((currentUses / (float)consumable.maxUses) * 100f);
+                text = percent + "%";
+            }
+            else if (amount > 1)
+            {
+                // Reserved for stack counts.
+                text = "x" + amount;
+            }
+
+            count.text = text;
+            count.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
         private VisualElement GetSlot(int slotIndex)
         {
             return IsValidSlotIndex(slotIndex) ? slots[slotIndex] : null;
@@ -587,9 +609,24 @@ namespace Assets.InventorySystem.Runtime
             var icon = GetSlotIcon(slotIndex);
             if (icon != null)
                 icon.style.backgroundImage = null;
+
+            SetSlotCount(slotIndex, GetSlotCount(slotIndex), null, 0);
         }
 
         private ItemSO DraggedItem => HasItem(currentDraggedIndex) ? items[currentDraggedIndex] : null;
+
+        private int DraggedItemAmount => HasItem(currentDraggedIndex) ? itemAmounts[currentDraggedIndex] : 0;
+
+        private int NormalizeItemAmount(ItemSO itemSO, int amount)
+        {
+            if (amount > 0)
+                return amount;
+
+            if (itemSO is ConsumableSO consumable)
+                return Mathf.Max(1, consumable.maxUses);
+
+            return 1;
+        }
 
         private string GetContainerIdForSlot(int slotIndex)
         {
@@ -623,6 +660,49 @@ namespace Assets.InventorySystem.Runtime
         public void ClearItemAt(int slotIndex)
         {
             ClearSlotVisual(slotIndex);
+            audioFeedback?.PlayItemMove();
+        }
+
+        public int GetItemAmountAt(int slotIndex)
+        {
+            return HasItem(slotIndex) ? itemAmounts[slotIndex] : 0;
+        }
+
+        public bool CanUseConsumableAt(int slotIndex)
+        {
+            if (!HasItem(slotIndex) || items[slotIndex] is not ConsumableSO)
+                return false;
+
+            // Do not consume directly from opened world loot containers.
+            return slotIndex < BaseSlots || CurrentLootContainer == null;
+        }
+
+        public void UseConsumableAt(int slotIndex, bool useAll)
+        {
+            if (!CanUseConsumableAt(slotIndex) || playerNetworkInventory == null)
+                return;
+
+            string containerId = GetContainerIdForSlot(slotIndex);
+            playerNetworkInventory.UseConsumableRpc(containerId, slotIndex, useAll);
+        }
+
+        public void UpdateItemAmountAt(int slotIndex, int amount)
+        {
+            if (!HasItem(slotIndex))
+                return;
+
+            if (amount <= 0)
+            {
+                ClearSlotVisual(slotIndex);
+
+                if (slotIndex == selectedSlot)
+                    UpdateItemInHand();
+
+                audioFeedback?.PlayItemMove();
+                return;
+            }
+
+            SetSlotVisual(slotIndex, items[slotIndex], amount);
             audioFeedback?.PlayItemMove();
         }
 
