@@ -22,7 +22,7 @@ namespace Assets.InventorySystem.Runtime
         public VisualElement Background { get; private set; }
 
         [Header("Templates")]
-        [SerializeField] private VisualTreeAsset slotTemplate; // Assign Assets/UI/Inventory/Slot.uxml
+        [SerializeField] private VisualTreeAsset slotTemplate;
 
         private List<VisualElement> slots;
         private readonly List<ItemSO> items = new();
